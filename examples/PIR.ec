@@ -72,7 +72,12 @@ proof.
     while (j <= N /\ if j <= i then PIR.s = PIR.s' else sxor2 PIR.s PIR.s' i).
     + wp;rnd;skip => /= &m [[_]] + HjN. 
       have -> /= : j{m} + 1 <= N by smt ().
-      case: (j{m} <= i{m}) => Hji;2: by smt ().
+      case: (j{m} <= i{m}) => Hji; first last.
+      + have -> /=: j{m} <> i{m} by smt().
+        have -> /=: !j{m} + 1 <= i{m} by smt ().
+        move=> + [] /= _.
+        + by move=> [] [s1 s2] [#] ->> ->>; [left | right]; exists (j{m}::s1) s2.
+        by move=> [] [s1 s2] [#] ->> ->>; [left | right]; exists s1 s2.
       move=> -> b _;case: (j{m} = i{m}) => [->> | /#].
       by rewrite (_ : !(i{m}+1 <= i{m})) 1:/# /=; smt (sxor_cons).
     by auto => /#.
@@ -207,13 +212,36 @@ proof.
     case (oflist PIR.s = restr x j);first last.
     + seq 3 : true _ 0%r 0%r _ (0 <= j <= N /\ is_restr (oflist PIR.s) j /\ oflist PIR.s <> restr x j).
       + auto => /> &hr H0j ???? b ?.    
-        rewrite restrS //= oflist_cons. 
-        smt (is_restr_addS is_restrS is_restr_Ueq  is_restr_diff fset0U is_restr_restr).
+        rewrite restrS //= oflist_cons.
+        case: b=> //= _; do !split.
+        + smt().
+        + smt().
+        + exact/is_restr_addS.
+        + case: (j{hr} \in x)=> _.
+          + move: H3; rewrite fsetP negb_forall=> - /= [i] H5.
+            rewrite fsetP negb_forall /=.
+            have H6: i <> j{hr}.
+            + have:= nin_is_restr (j{hr}) (oflist PIR.s{hr}) H1.
+              have:= nin_is_restr (j{hr}) (restr x j{hr}) (is_restr_restr j{hr} x).
+              smt().
+            by exists i; rewrite !in_fsetU !in_fset1 H6.
+          rewrite fsetP negb_forall; exists j{hr}=> /=; rewrite !in_fsetU in_fset1 in_fset0 /=.
+          exact/nin_is_restr/is_restr_restr.
+        + smt().
+        + smt().
+        + exact/is_restrS.
+        + move: H3; rewrite fsetP negb_forall=> - /= [i] H5.
+          rewrite fsetP negb_forall /=.
+          have H6: i <> j{hr}.
+          + have:= nin_is_restr (j{hr}) (oflist PIR.s{hr}) H1.
+            have:= nin_is_restr (j{hr}) (restr x j{hr}) (is_restr_restr j{hr} x).
+            smt().
+          by exists i; case: (j{hr} \in x); rewrite !in_fsetU ?in_fset0 ?in_fset1 ?H6.
         by conseq H => /#.
       + by hoare;auto.
       smt().      
     conseq (_ : _ : = (1%r / 2%r ^ (N - j))) => [/#|].
-    exists * j, PIR.s;elim * => j0 s0.    
+    exists * j, PIR.s;elim * => j0 s0.
     seq 3: (b = j0 \in x) (1%r/2%r) (1%r / 2%r ^ (N - (j0+1))) _ 0%r 
         (1 <= j <= N /\ j = j0 + 1 /\ (PIR.s = if b then j0 :: s0 else s0) /\ 
          is_restr (oflist s0) j0 /\ oflist s0 = restr x j0).
@@ -241,12 +269,12 @@ lemma Pr_PIR_s' i0 &m x :
   Pr[PIR.main(i0) @ &m : oflist PIR.s' = x] = 
     if is_restr x N then 1%r/2%r^N else 0%r.
 proof.
-  byphoare=> // {i0};proc;inline *;wp.
+  byphoare=> //;proc;inline *;wp.
   case: (is_restr x N);first last.
-  + conseq (_ : _ ==> _ : = 0%r) => [ _ -> // | ].
+  + conseq (_ : _ ==> _ : = 0%r) => [ &hr [#] -> // | ].
     hoare;conseq (_ : _ ==> is_restr (oflist PIR.s') N); 1:by smt().
-    while (0<= j <= N /\ is_restr (oflist PIR.s') j).
-    + auto;smt (oflist_cons is_restrS is_restr_addS).
+    while (0 <= j <= N /\ is_restr (oflist PIR.s') j).
+    + auto=> &hr [#] ? _ ? ? b _; split=> [->>|]; smt(oflist_cons is_restrS is_restr_addS).
     auto=> ?;rewrite -set0E;smt (is_restr_fset0 N_pos).
   sp; conseq (_ : _ ==> _ : = (if (oflist PIR.s') = restr x j then 1%r/2%r^(N-j) else 0%r)).
   + move=> {&m} &m />;rewrite -set0E. 
@@ -255,12 +283,45 @@ proof.
   conseq (_ : _ ==> oflist PIR.s' = restr x j) (_: _ ==> j = N) => //;1:smt().
   + while(0 <= j <= N);auto;smt (N_pos).
   while (0 <= j <= N /\ is_restr (oflist PIR.s') j) (N-j) N 1%r;2,3:smt(N_pos).
-  + by move=> &hr /> _;rewrite -set0E N_pos /=; apply is_restr_fset0.
+  + by move=> &hr /> _; rewrite -set0E N_pos /=; apply is_restr_fset0.
   + move=> H.
     case (oflist PIR.s' = restr x j);first last.
     + seq 3 : true _ 0%r 0%r _ (0 <= j <= N /\ is_restr (oflist PIR.s') j /\ oflist PIR.s' <> restr x j).
-      + auto => &hr [#] ????? b _;case: (j{hr}=i{hr}) => />;rewrite restrS //= oflist_cons;
-          smt (is_restr_addS is_restrS is_restr_Ueq  is_restr_diff fset0U is_restr_restr).
+      + auto=> &hr [#] ? _ ? ? ? b _; case: (j{hr}=i{hr}) => />; rewrite restrS //= oflist_cons.
+        + move: H3; rewrite fsetP negb_forall=> - /= [j] j_in_s'_xor_x.
+          have?:= is_restrS i{hr} (oflist PIR.s'{hr}) _ _; 1,2:done.
+          have?:= is_restr_addS i{hr} (oflist PIR.s'{hr}) _ _; 1,2:done.
+          have?:= nin_is_restr i{hr} (oflist PIR.s'{hr}) H1.
+          have?:= nin_is_restr i{hr} (restr x i{hr}) (is_restr_restr i{hr} x).
+          have?: j <> i{hr} by smt().
+          case: b=> /= _; do !split=> //=.
+          + smt().
+          + smt().
+          + rewrite fsetP negb_forall; case: (i{hr} \in x)=> //= _.
+            + by exists i{hr}; rewrite !in_fsetU in_fset1 /= H5.
+            by exists j; rewrite !in_fsetU in_fset0 /=.
+          + smt().
+          + smt().
+          rewrite fsetP negb_forall; case: (i{hr} \in x)=> //= _.
+          + by exists j; rewrite !in_fsetU in_fset1 H7.
+          by exists i{hr}; rewrite !in_fsetU in_fset1 in_fset0 H6.
+        move: H3; rewrite fsetP negb_forall=> - /= [i] i_in_s'_xor_x.
+        have?:= is_restrS j{hr} (oflist PIR.s'{hr}) _ _; 1,2:done.
+        have?:= is_restr_addS j{hr} (oflist PIR.s'{hr}) _ _; 1,2:done.
+        have?:= nin_is_restr j{hr} (oflist PIR.s'{hr}) H1.
+        have?:= nin_is_restr j{hr} (restr x j{hr}) (is_restr_restr j{hr} x).
+        have?: i <> j{hr} by smt().
+        case: b=> /= _ _; do !split=> //=.
+        + smt().
+        + smt().
+        + rewrite fsetP negb_forall; case: (j{hr} \in x)=> //= _.
+          + by exists i; rewrite !in_fsetU in_fset1 H7.
+          by exists j{hr}; rewrite !in_fsetU in_fset0 in_fset1 H6.
+        + smt().
+        + smt().
+        + rewrite fsetP negb_forall; case: (j{hr} \in x)=> //= _.
+          + by exists i; rewrite !in_fsetU in_fset1 H7.
+          by exists i; rewrite !in_fsetU in_fset0.
         by conseq H => /#.
       + by hoare;auto.
       smt().      
@@ -269,7 +330,7 @@ proof.
     seq 3: (b = ((j0 = i) ^^ (j0 \in x))) (1%r/2%r) (1%r / 2%r ^ (N - (j0+1))) _ 0%r 
         (1 <= j <= N /\ j = j0 + 1 /\ (PIR.s' = if (j0=i) then (if b then s0 else j0::s0) else if b then j0 :: s0 else s0) /\ 
          is_restr (oflist s0) j0 /\ oflist s0 = restr x j0).
-    + by auto => /#.
+    + by auto => &hr [#] ->> ->> ? _ ? ? ? b _ /#.
     + by wp => /=;rnd (pred1 ((j0 = i) ^^ (j0 \in x)));skip => /> &hr;rewrite dbool1E.
     + conseq H => />.
       + move=> &hr ?? His Hof;case: (j0 = i{hr}) => /=. 
@@ -295,9 +356,10 @@ proof.
         by rewrite fset0U oflist_cons -Hof (is_restr_diff j0 (oflist s0) _ His).
       smt (is_restrS is_restr_addS oflist_cons).
     by move=> &hr /> ?????;rewrite mulrC -powrS 1:/#;congr;congr;ring.
-  + wp;rnd predT;skip => &hr.
-    smt (dbool_ll oflist_cons is_restrS is_restr_addS).
-  move=> z;auto=> />;smt (dbool_ll).
+  + wp; rnd predT; skip=> &hr [#].
+    rewrite /predT dbool_ll oflist_cons=> /= ? _ ? ? v _.
+    split=> [->>|]; smt(is_restrS is_restr_addS).
+  by move=> z;auto=> />;smt (dbool_ll).
 qed.
 
 lemma PIR_secuity_s_bypr i1 i2 &m1 &m2 x: 
@@ -333,8 +395,71 @@ proof.
     move=> _;split.
     + by move=> b _;apply dbool_funi.
     move=> _ b _;rewrite dbool_fu /=;split;1: by ring.
-    move=> _; rewrite !oflist_cons !restrS //. 
-    smt (is_restr_addS is_restrS is_restr_diff is_restr_Ueq is_restr_restr  fset0U).
+    move=> _; rewrite !oflist_cons !restrS //.
+    have -> /=: 0 <= j{m2} + 1 by smt().
+    have -> /=: j{m2} + 1 <= N by smt().
+    have -> /=: is_restr (fset1 j{m2} `|` oflist PIR.s{m1}) (j{m2} + 1) = true.
+    + by rewrite eqT; exact/is_restr_addS.
+    have -> /=: is_restr (fset1 j{m2} `|` oflist PIR.s{m2}) (j{m2} + 1) = true.
+    + by rewrite eqT; exact/is_restr_addS.
+    have -> /=: is_restr (oflist PIR.s{m2}) (j{m2} + 1) = true.
+    + by rewrite eqT; exact/is_restrS.
+    have -> /=: is_restr (oflist PIR.s{m1}) (j{m2} + 1) = true.
+    + by rewrite eqT; exact/is_restrS.
+    have j_in_s1:= nin_is_restr _ _ Hrs1.
+    have j_in_s2:= nin_is_restr _ _ Hrs2.
+    have j_in_rx1:= nin_is_restr _ _ (is_restr_restr j{m2} x1).
+    have j_in_rx2:= nin_is_restr _ _ (is_restr_restr j{m2} x2).
+    case: b; case: (j{m2} \in x1); case: (j{m2} \in x2)=> //=.
+    + move=> j_in_x2 j_in_x1 _; rewrite xorK xorC xor_false /=.
+      rewrite eq_iff !fsetP; split.
+      + move=> h; have: forall x, x \in oflist PIR.s{m1} <=> x \in restr x1 j{m2}.
+        + move=> x; split.
+          + move=> x_in_s; have x_n_j: x <> j{m2} by smt().
+            by move: x_in_s=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU h in_fsetU in_fset1 x_n_j.
+          move=> x_in_rx; have x_n_j: x <> j{m2} by smt().
+          by move:x_in_rx=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU -h in_fsetU in_fset1 x_n_j.
+        by rewrite -fsetP Hs=> ->.
+      move=> h; have: forall x, x \in oflist PIR.s{m2} <=> x \in restr x2 j{m2}.
+      + move=> x; split.
+        + move=> x_in_s; have x_neq_j: x <> j{m2} by smt().
+          by move: x_in_s=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU h in_fsetU in_fset1 x_neq_j.
+        move=> x_in_rx; have x_neq_j: x <> j{m2} by smt().
+        by move:x_in_rx=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU -h in_fsetU in_fset1 x_neq_j.
+      by rewrite -fsetP -Hs=> ->.
+    + move=> j_nin_x2 j_in_x1 _; rewrite xorK fset0U -Hs /=.
+      rewrite eq_iff !fsetP; split.
+      + move=> h x; split.
+        + move=> x_in_s; have x_n_j: x <> j{m2} by smt().
+          by move: x_in_s=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU h in_fsetU in_fset1 x_n_j.
+        move=> x_in_rx; have x_n_j: x <> j{m2} by smt().
+        by move:x_in_rx=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU -h in_fsetU in_fset1 x_n_j.
+      by rewrite -fsetP=> ->.
+    + move=> j_in_x2 j_nin_x1 _; rewrite xorK /= fset0U.
+      rewrite eq_iff !fsetP; split.
+      + by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_rx1.
+      by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_rx2.
+    + move=> j_nin_x2 j_nin_x1 _; rewrite xorA xorK xor_false /= !fset0U.
+      rewrite eq_iff !fsetP; split.
+      + by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_rx1.
+      by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_rx2.
+    + move=> j_in_x2 j_in_x1 _; rewrite xorK /=.
+      rewrite eq_iff !fsetP; split.
+      + by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_s1.
+      by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_s2.
+    + move=> j_nin_x2 j_in_x1 _; rewrite xorA xorC xorA xorK xor_false fset0U /=.
+      rewrite eq_iff !fsetP; split.
+      + by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_s1.
+      by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_s2.
+    + move=> j_in_x2 j_nin_x1 _; rewrite xorK xorC xor_false fset0U /=.
+      rewrite Hs eq_iff !fsetP; split.
+      + by rewrite -fsetP=> ->.
+      move=> h x; split.
+      + move=> x_in_s; have x_n_j: x <> j{m2} by smt().
+        by move: x_in_s=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU h in_fsetU in_fset1 x_n_j.
+      move=> x_in_rx; have x_n_j: x <> j{m2} by smt().
+      by move:x_in_rx=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU -h in_fsetU in_fset1 x_n_j.
+    by move=> j_nin_x2 j_nin_x1 _; rewrite xorK !fset0U /=.
   auto; move => &m1 &m2 />.
   rewrite !restr_0 -set0E /=;smt (is_restr_fset0).
 qed.
@@ -357,8 +482,119 @@ proof.
     + by move=> b _;apply dbool_funi.
     move=> _ b _;rewrite dbool_fu /=;split;1: by ring.
     move=> _; rewrite !oflist_cons !restrS //. 
-    smt (is_restr_addS is_restrS is_restr_diff is_restr_Ueq is_restr_restr fset0U).
+    have -> /=: 0 <= j{m2} + 1 by smt().
+    have -> /=: j{m2} + 1 <= N by smt().
+    have -> /=: is_restr (fset1 j{m2} `|` oflist PIR.s'{m1}) (j{m2} + 1) = true.
+    + by rewrite eqT; exact/is_restr_addS.
+    have -> /=: is_restr (fset1 j{m2} `|` oflist PIR.s'{m2}) (j{m2} + 1) = true.
+    + by rewrite eqT; exact/is_restr_addS.
+    have -> /=: is_restr (oflist PIR.s'{m2}) (j{m2} + 1) = true.
+    + by rewrite eqT; exact/is_restrS.
+    have -> /=: is_restr (oflist PIR.s'{m1}) (j{m2} + 1) = true.
+    + by rewrite eqT; exact/is_restrS.
+    have j_in_s1:= nin_is_restr _ _ Hrs1.
+    have j_in_s2:= nin_is_restr _ _ Hrs2.
+    have j_in_rx1:= nin_is_restr _ _ (is_restr_restr j{m2} x1).
+    have j_in_rx2:= nin_is_restr _ _ (is_restr_restr j{m2} x2).
+    case: b; case: (j{m2} \in x1); case: (j{m2} \in x2); (case: (j{m2} = i{m2})=> [<<-|_])=> //=.
+    + move=> j_in_x2 j_in_x1 _; rewrite xorK xorC xor_false /=.
+      rewrite eq_iff !fsetP; split=> //=.
+      + by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_s1.
+      by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_s2.
+    + move=> j_in_x2 j_in_x1 _; rewrite xorK xorC xor_false /=.
+      rewrite eq_iff !fsetP; split.
+      + move=> h; have: forall x, x \in oflist PIR.s'{m1} <=> x \in restr x1 j{m2}.
+        + move=> x; split.
+          + move=> x_in_s; have x_n_j: x <> j{m2} by smt().
+            by move: x_in_s=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU h in_fsetU in_fset1 x_n_j.
+          move=> x_in_rx; have x_n_j: x <> j{m2} by smt().
+          by move:x_in_rx=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU -h in_fsetU in_fset1 x_n_j.
+        by rewrite -fsetP Hs=> ->.
+      move=> h; have: forall x, x \in oflist PIR.s'{m2} <=> x \in restr x2 j{m2}.
+      + move=> x; split.
+        + move=> x_in_s; have x_neq_j: x <> j{m2} by smt().
+          by move: x_in_s=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU h in_fsetU in_fset1 x_neq_j.
+        move=> x_in_rx; have x_neq_j: x <> j{m2} by smt().
+        by move:x_in_rx=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU -h in_fsetU in_fset1 x_neq_j.
+      by rewrite -fsetP -Hs=> ->.
+    + move=> j_nin_x2 j_in_x1 _; rewrite xorK fset0U /=.
+      rewrite eq_iff !fsetP; split.
+      + by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_rx1.
+      by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_rx2.
+    + move=> j_nin_x2 j_in_x1 _; rewrite xorK fset0U -Hs /=.
+      rewrite eq_iff !fsetP; split.
+      + move=> h x; split.
+        + move=> x_in_s; have x_n_j: x <> j{m2} by smt().
+          by move: x_in_s=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU h in_fsetU in_fset1 x_n_j.
+        move=> x_in_rx; have x_n_j: x <> j{m2} by smt().
+        by move:x_in_rx=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU -h in_fsetU in_fset1 x_n_j.
+      by rewrite -fsetP=> ->.
+    + move=> j_in_x2 j_nin_x1 _; rewrite xorC xorK fset0U Hs /=.
+      rewrite eq_iff !fsetP; split.
+      + by rewrite -fsetP=> ->.      
+      move=> h x; split.
+      + move=> x_in_s; have x_n_j: x <> j{m2} by smt().
+        by move: x_in_s=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU h in_fsetU in_fset1 x_n_j.
+      move=> x_in_rx; have x_n_j: x <> j{m2} by smt().
+      by move:x_in_rx=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU -h in_fsetU in_fset1 x_n_j.
+    + move=> j_in_x2 j_nin_x1 _; rewrite xorC xorK /= fset0U.
+      rewrite eq_iff !fsetP; split.
+      + by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_rx1.
+      by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_rx2.
+    + by move=> j_nin_x2 j_nin_x1 _; rewrite xorA xorK xor_false !fset0U /=.
+    + move=> j_nin_x2 j_nin_x1 _; rewrite xorA xorK xor_false !fset0U /=.
+      rewrite eq_iff !fsetP; split.
+      + by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_s1.
+      by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_s2.
+    + move=> j_in_x2 j_in_x1 _; rewrite xorC xorK /=.
+      rewrite eq_iff !fsetP; split.
+      + move=> h; have: forall x, x \in oflist PIR.s'{m1} <=> x \in restr x1 j{m2}.
+        + move=> x; split.
+          + move=> x_in_s; have x_n_j: x <> j{m2} by smt().
+            by move: x_in_s=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU h in_fsetU in_fset1 x_n_j.
+          move=> x_in_rx; have x_n_j: x <> j{m2} by smt().
+          by move:x_in_rx=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU -h in_fsetU in_fset1 x_n_j.
+        by rewrite -fsetP Hs=> ->.
+      move=> h; have: forall x, x \in oflist PIR.s'{m2} <=> x \in restr x2 j{m2}.
+      + move=> x; split.
+        + move=> x_in_s; have x_neq_j: x <> j{m2} by smt().
+          by move: x_in_s=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU h in_fsetU in_fset1 x_neq_j.
+        move=> x_in_rx; have x_neq_j: x <> j{m2} by smt().
+        by move:x_in_rx=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU -h in_fsetU in_fset1 x_neq_j.
+      by rewrite -fsetP -Hs=> ->.
+    + move=> j_in_x2 j_in_x1 _; rewrite xorC xorK /=.
+      rewrite eq_iff !fsetP; split=> //=.
+      + by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_s1.
+      by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_s2.
+    + move=> j_nin_x2 j_in_x1 _; rewrite xorA xorC xorA xorK xor_false fset0U -Hs /=.
+      rewrite eq_iff !fsetP; split.
+      + move=> h x; split.
+        + move=> x_in_s; have x_n_j: x <> j{m2} by smt().
+          by move: x_in_s=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU h in_fsetU in_fset1 x_n_j.
+        move=> x_in_rx; have x_n_j: x <> j{m2} by smt().
+        by move:x_in_rx=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU -h in_fsetU in_fset1 x_n_j.
+      by rewrite -fsetP=> ->.
+    + move=> j_nin_x2 j_in_x1 _; rewrite xorA xorC xorA xorK fset0U /=.
+      rewrite eq_iff !fsetP; split.
+      + by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_rx1.
+      by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_rx2.
+    + move=> j_in_x2 j_nin_x1 _; rewrite xorC xorK /= fset0U.
+      rewrite eq_iff !fsetP; split.
+      + by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_rx1.
+      by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_rx2.
+    + move=> j_in_x2 j_nin_x1 _; rewrite xorC xorK fset0U Hs /=.
+      rewrite eq_iff !fsetP; split.
+      + by rewrite -fsetP=> ->.      
+      move=> h x; split.
+      + move=> x_in_s; have x_n_j: x <> j{m2} by smt().
+        by move: x_in_s=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU h in_fsetU in_fset1 x_n_j.
+      move=> x_in_rx; have x_n_j: x <> j{m2} by smt().
+      by move:x_in_rx=> /(orIr (x \in fset1 j{m2})); rewrite -in_fsetU -h in_fsetU in_fset1 x_n_j.
+    + move=> j_nin_x2 j_nin_x1 _; rewrite xorK !fset0U /=.
+      rewrite eq_iff !fsetP; split.
+      + by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_s1.
+      by move=> /(_ j{m2}); rewrite in_fsetU in_fset1 j_in_s2.
+    + by move=> j_nin_x2 j_nin_x1 _; rewrite xorK !fset0U /=.
   auto => &m1 &m2 />.
   rewrite !restr_0 -set0E /=;smt (is_restr_fset0).
 qed.
-
