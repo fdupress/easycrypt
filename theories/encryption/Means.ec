@@ -93,8 +93,16 @@ elim/fset_ind (oflist (to_seq (support d))).
     rewrite Pr[mu_eq] => // &m1.
     pose f:= (fun (v : input) (r : input * output),
                 ev v (glob A){m1} (snd r) /\ v = fst r).
-    by rewrite imageU image1 cpOrs_add; smt.
-  rewrite Pr[mu_disjoint]; first by smt.
+    by rewrite -/(f x res{m1}) imageU image1 cpOrs_add /predU.
+  rewrite Pr[mu_disjoint].
+  + move=> /> &hr; rewrite negb_and.
+    case: (res{hr})=> x1 x2 /=.
+    case: (ev x (glob A){hr} x2 /\ x = x1)=> - //= [] ev_x <<-.
+    move=> {Hrec}.
+    elim/fset_ind s Hx.
+    + by rewrite image0 cpOrs0.
+    move=> x0 s x0_nin_s ih; rewrite in_fsetU in_fset1 negb_or eq_sym=> - [] /ih h x0_neq_x.
+    by rewrite imageU image1 cpOrs_add /predU /= x0_neq_x /= h.
   by rewrite Hrec (prCond A &m x ev).
 qed.
 

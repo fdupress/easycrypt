@@ -236,7 +236,7 @@ section.
       move=> &m2 _;conseq losslessOb2.
       move=> &m1; conseq losslessOb2.
 
-    by inline{2} Count.init;wp;skip;smt.
+    by inline{2} Count.init; auto=> /> /#.
   qed.
 
   local lemma WRq_GRA &m (p:glob A -> glob Ob -> int -> outputA -> bool):
@@ -254,14 +254,13 @@ section.
       by apply losslessA.
 
       proc;inline{2} Count.incr;wp.
-      if{1};first by call{1} losslessOb1;call{2} losslessOb2;wp;skip; smt.
-      if{1};
-        first by wp;call Oborcl2;wp;skip;progress => //;smt.
-      by call Oborcl2;wp;skip;progress => //;smt.
+      if{1}; first by call{1} losslessOb1; call{2} losslessOb2; auto=> /> /#.
+      if{1}; first by wp; call Oborcl2; auto=> /> /#.
+      by call Oborcl2; auto=> /> /#.
       move=> &m2 _;proc.
-      rcondt 1; first by skip;smt.
-      by wp;call losslessOb1;skip; smt.
-      move=> &m1;proc;inline Count.incr;wp;call losslessOb2;wp;skip;smt.
+      rcondt 1; first by skip=> /#.
+      by wp; call losslessOb1; auto=> /#.
+      by move=> &m1; proc; inline Count.incr; wp; call losslessOb2; auto=> /#.
 
       by conseq Obleaks.
       move=> &m2 _;conseq losslessL.
@@ -275,7 +274,7 @@ section.
       move=> &m2 _;conseq losslessOb2.
       move=> &m1; conseq losslessOb2.
 
-    by inline{2} Count.init;wp;skip;smt.
+    by inline{2} Count.init; auto=> /#.
   qed.
 
   local lemma WLR_shift &m v (p:glob A -> glob Ob -> int -> outputA -> bool):
@@ -288,11 +287,10 @@ section.
     proc.
     call (_: ={glob Ob, HybOrcl.l} /\ HybOrcl.l0{1} = v /\ HybOrcl.l0{2} = v-1).
       proc.
-      if{1}; first by rcondt{2} 1;[move=> &m0;skip;smt | wp;call Oborcl1].
-      if{1};first by rcondt{2} 1;
-       [move=> &m0;skip;smt | wp;call Oborcl1;wp].
-      rcondf{2} 1;first by move=> &m0;skip;smt.
-      by if{2};wp;call Oborcl2;wp.
+      if{1}; first by rcondt{2} 1; [move=> &m0; skip=> /# | wp; call Oborcl1].
+      if{1}; first by rcondt{2} 1; [move=> &m0; skip=> /# | wp; call Oborcl1; wp].
+      rcondf{2} 1; first by move=> &m0; skip=> /#.
+      by if{2}; wp; call Oborcl2; wp.
       by conseq Obleaks.
       by conseq Oborcl1.
       by conseq Oborcl2.
@@ -307,9 +305,9 @@ section.
     rewrite (Mrplus.sum_chind f (fun l, l - k) (fun l, l + k)) /=;first smt.
     congr => //.
     apply FSet.fsetP => x.
-    rewrite imageP !mem_oflist !List.Iota.mem_iota; split.
-      move=> [y];rewrite !mem_oflist !List.Iota.mem_iota;smt.
-    move=> Hx;exists (x+k);rewrite !mem_oflist !List.Iota.mem_iota;smt.
+    rewrite imageP !mem_oflist !List.Iota.mem_iota; split=> [[y] | Hx].
+      by rewrite !mem_oflist !List.Iota.mem_iota=> /#.
+    by exists (x+k); rewrite !mem_oflist !List.Iota.mem_iota=> /#.
   qed.
 
   lemma Hybrid &m (p:glob A -> glob Ob -> int -> outputA -> bool):
@@ -323,39 +321,40 @@ section.
     move=> p';rewrite (GLB_WL &m p') (GRB_WR &m p').
     simplify p'; rewrite -(WL0_GLA &m p) -(WRq_GRA &m p).
     cut Hint : forall x, support [0..q - 1] x <=> mem (oflist (List.Iota.iota_ 0 q)) x.
-      by move=> x; rewrite !mem_oflist !List.Iota.mem_iota  supp_dinter; smt.
+      by move=> x; rewrite !mem_oflist !List.Iota.mem_iota  supp_dinter=> /#.
     cut Hfin: is_finite (support [0..q - 1]).
       exists (List.Iota.iota_ 0 q).
       by rewrite List.Iota.iota_uniq=> /= x; rewrite List.Iota.mem_iota supp_dinter=> /#.
     cut Huni : forall (x : int), x \in [0..q - 1] => mu1 [0..q - 1] x = 1%r / q%r.
-      by move=> x Hx; rewrite dinter1E /=; smt(supp_dinter).
+      by move=> x Hx; rewrite dinter1E /= -supp_dinter Hx=> /#.
     pose ev :=
       fun (_j:int) (g:glob HybGameFixed(L(Ob))) (r:outputA),
         let (l,l0,ga,ge) = g in p ga ge l r /\ l <= q.
     cut := M.Mean_uni (HybGameFixed(L(Ob))) &m ev (1%r/q%r) _ _ => //; simplify ev => ->.
     cut := M.Mean_uni (HybGameFixed(R(Ob))) &m ev (1%r/q%r) _ _ => //; simplify ev => ->.
     cut -> : oflist (to_seq (support [0..q - 1])) = oflist (List.Iota.iota_ 0 q).
-      by apply FSet.fsetP => x; rewrite !mem_oflist mem_to_seq// smt.
+      apply FSet.fsetP=> x; rewrite !mem_oflist mem_to_seq 1:Hfin supp_dinter List.Iota.mem_iota.
+      smt(q_pos).
     cut {1}->: oflist (List.Iota.iota_ 0 q) = oflist (List.Iota.iota_ 1 (q - 1)) `|` fset1 0.
-      by apply/fsetP=> x; rewrite !inE !mem_oflist !List.Iota.mem_iota; smt.
+      by apply/fsetP=> x; rewrite !inE !mem_oflist !List.Iota.mem_iota; smt(q_pos).
     cut ->: oflist (List.Iota.iota_ 0 q) = oflist (List.Iota.iota_ 0 (q - 1)) `|` fset1 (q - 1).
-      by apply/fsetP=> x; rewrite !inE !mem_oflist !List.Iota.mem_iota; smt.
+      by apply/fsetP=> x; rewrite !inE !mem_oflist !List.Iota.mem_iota; smt(q_pos).
     rewrite Mrplus.sum_add /=.
       by rewrite mem_oflist List.Iota.mem_iota.
     rewrite Mrplus.sum_add /=.
       by rewrite mem_oflist List.Iota.mem_iota.
-    cut Hq : q%r <> 0%r by smt.
+    cut Hq : q%r <> 0%r by smt(q_pos).
     fieldeq => //.
-    cut ->: q - 1 = q - 1 - 1 - 0 + 1 by smt.
+    cut ->: q - 1 = q - 1 - 1 - 0 + 1 by smt().
     rewrite (Mrplus_inter_shift 0 (q - 1 - 1) (-1)) /=.
-    have ->: q - 1 - 1 + 1 = q - 1 by smt.
-    rewrite -(Mrplus.sum_comp (( * ) (-q%r))) 1..2:smt.
-    rewrite -(Mrplus.sum_comp (( * ) (q%r))) 1..2:smt.
+    have ->: q - 1 - 1 + 1 = q - 1 by smt().
+    rewrite -(Mrplus.sum_comp (( * ) (-q%r))); 1,2:smt().
+    rewrite -(Mrplus.sum_comp (( * ) (q%r))); 1,2:smt().
     rewrite Mrplus.sum_add2 /=.
     rewrite (Mrplus.NatMul.sum_const 0%r) /Mrplus.NatMul.( * ) //=.
     move=> x; rewrite mem_oflist List.Iota.mem_iota=> Hx.
-    cut:= WLR_shift &m x p' _; 1:smt. simplify p'=> ->.
-    by smt.
+    cut:= WLR_shift &m x p' _; 1:smt(). simplify p'=> ->.
+    smt().
   qed.
 
 end section.
@@ -491,22 +490,22 @@ section.
        proc;inline *;wp.
        call (_ : ={glob Ob, glob HybOrcl} /\ (if HybOrcl.l <= HybOrcl.l0 then Count.c = 0 else Count.c =1){2}).
         proc. inline *;wp.
-        if => //. call (_: ={glob HybOrcl});auto; smt.
-        if => //. wp;call (_: ={glob HybOrcl});auto; smt. call (_: ={glob HybOrcl});auto; smt.
+        if => //. call (_: ={glob HybOrcl}); auto=> /#.
+        if => //. wp; call (_: ={glob HybOrcl}); auto=> /#. call (_: ={glob HybOrcl}); auto=> /#.
        conseq (_: _ ==> ={res,glob Ob}) => //. sim.
        conseq (_: _ ==> ={res,glob Ob}) => //. sim.
        conseq (_: _ ==> ={res,glob Ob}) => //. sim.
-       auto;progress;smt.
+       by auto=> /> l; rewrite supp_dinter=> [#] -> /#.
      byequiv (_ : ={glob A, glob Ob} ==> ={glob A, glob Ob, glob HybOrcl, res} /\ Count.c{2} <= 1) => //.
        proc;inline *;wp.
        call (_ : ={glob Ob, glob HybOrcl} /\ (if HybOrcl.l <= HybOrcl.l0 then Count.c = 0 else Count.c =1){2}).
         proc. inline *;wp.
-        if => //. call (_: ={glob HybOrcl});auto; smt.
-        if => //. wp;call (_: ={glob HybOrcl});auto; smt. call (_: ={glob HybOrcl});auto; smt.
+        if => //. call (_: ={glob HybOrcl}); auto=> /#.
+        if => //. wp;call (_: ={glob HybOrcl}); auto=> /#. call (_: ={glob HybOrcl}); auto=> /#.
        conseq (_: _ ==> ={res,glob Ob}) => //. sim.
        conseq (_: _ ==> ={res,glob Ob}) => //. sim.
        conseq (_: _ ==> ={res,glob Ob}) => //. sim.
-       auto;progress;smt.
+       by auto=> /> l; rewrite supp_dinter=> [#] -> /#.
     qed.
 
 end section.
