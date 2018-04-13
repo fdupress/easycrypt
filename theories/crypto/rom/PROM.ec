@@ -649,7 +649,8 @@ abstract theory GenEager.
   proc;auto=> ? &ml [] -> -> /= ? -> /=.
   rewrite dom_restr negb_and oraE neqK_eqU.
   rewrite !restr_set /= !getP_eq oget_some=> />.
-  by rewrite negb_or/= restrP in_dom /#.
+  rewrite negb_or /= restrP in_dom; case: (FRO.m{ml}.[x{ml}])=> //= - [x f].
+  by rewrite oget_some /=; case: (f).
   qed.
 
   equiv LRO_RRO_set : LRO.set ~ RRO.set :
