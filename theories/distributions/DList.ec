@@ -81,7 +81,7 @@ proof.
 move=> le0_n; case (n = size xs)=> [->|].
 + elim xs=> [|x xs ih];first by rewrite dlist01E.
   by rewrite dlistS1E /= big_cons ih.
-smt w=(supp_dlist mu_bounded).
+smt(supp_dlist mu_bounded).
 qed.
 
 lemma dlist0E n (d : 'a distr) P : n <= 0 => mu (dlist d n) P = b2r (P []).
@@ -187,18 +187,18 @@ abstract theory Program.
   proof.
     bypr (res{1}) (res{2})=> //= &1 &2 xs [lt0_n] <-.
     rewrite (pr_Sample n{1} &1 xs); case (size xs = n{1})=> [<<-|].
-      case xs lt0_n=> [|x xs lt0_n]; 1:smt.
+      case xs lt0_n=> [|x xs lt0_n]; 1:smt().
       rewrite dlistS1E.
-      byphoare (_: n = size xs + 1 ==> x::xs = res)=> //=; 2:smt.
+      byphoare (_: n = size xs + 1 ==> x::xs = res)=> //=; 2:smt().
       proc; seq  1: (rs = xs) (mu (dlist d (size xs)) (pred1 xs)) (mu d (pred1 x)) _ 0%r.
         done.
-        by rnd (pred1 xs); skip; smt.
-        by rnd (pred1 x); skip; smt.
-        by hoare; auto; smt.
-        smt.
-    move=> len_xs; rewrite dlist1E 1:smt (_: n{1} <> size xs) /= 1:smt.
+        by rnd (pred1 xs); skip; smt().
+        by rnd (pred1 x); skip; smt().
+        by hoare; auto; smt().
+        smt().
+    move=> len_xs; rewrite dlist1E 1:/# (_: n{1} <> size xs) /= 1:/#.
     byphoare (_: n = n{1} ==> xs = res)=> //=; hoare.
-    by proc; auto; smt.
+    by proc; auto; smt(supp_dlist).
   qed.
 
   equiv Sample_Loop_eq: Sample.sample ~ Loop.sample: ={n} ==> ={res}.
@@ -209,7 +209,7 @@ abstract theory Program.
     have {h} h: 0 <= _n by smt ().
     call (_: _n = n{1} /\ ={n} ==> ={res})=> //=.
     elim _n h=> //= [|_n le0_n ih].
-      by proc; rcondf{2} 3; auto; smt.
+      by proc; rcondf{2} 3; auto=> />; smt(dlist0_ll supp_dlist0).
     case (_n = 0)=> [-> | h].
       proc; rcondt{2} 3; 1:(by auto); rcondf{2} 6; 1:by auto.
       wp; rnd (fun x => head witness x) (fun x => [x]).
@@ -218,21 +218,21 @@ abstract theory Program.
       rewrite supp_dlist //;case rL => //=; smt (size_eq0).
     transitivity SampleCons.sample
                  (={n} /\ 0 < n{1} ==> ={res})
-                 (_n + 1 = n{1} /\ ={n} /\ 0 < n{1} ==> ={res})=> //=; 1:smt.
+                 (_n + 1 = n{1} /\ ={n} /\ 0 < n{1} ==> ={res})=> //=; 1:smt().
       by conseq Sample_SampleCons_eq.
     proc; splitwhile{2} 3: (i < n - 1).
-    rcondt{2} 4; 1:by auto; while (i < n); auto; smt.
-    rcondf{2} 7; 1:by auto; while (i < n); auto; smt.
+    rcondt{2} 4; 1:by auto; while (i < n); auto; smt().
+    rcondf{2} 7; 1:by auto; while (i < n); auto; smt().
     wp; rnd.
     transitivity{1} { rs <@ Sample.sample(n - 1); }
                     (={n} /\ 0 < n{1} ==> ={rs})
-                    (_n + 1 = n{1} /\ ={n} /\ 0 < n{1} ==> rs{1} = l{2})=> //=; 1:smt.
+                    (_n + 1 = n{1} /\ ={n} /\ 0 < n{1} ==> rs{1} = l{2})=> //=; 1:smt().
       by inline *; auto.
     transitivity{1} { rs <@ Loop.sample(n - 1); }
                     (_n + 1 = n{1} /\ ={n} /\ 0 < n{1} ==> ={rs})
-                    (={n} /\ 0 < n{1} ==> rs{1} = l{2})=> //=; 1:smt.
-      by call ih; auto; smt.
-    by inline *; wp; while (={i, n, l} /\ n0{1} = n{1} - 1 /\ 0 < n{1}); auto; smt.
+                    (={n} /\ 0 < n{1} ==> rs{1} = l{2})=> //=; 1:smt().
+      by call ih; auto; smt().
+    by inline *; wp; while (={i, n, l} /\ n0{1} = n{1} - 1 /\ 0 < n{1}); auto; smt().
   qed.
 
   equiv Sample_LoopSnoc_eq: Sample.sample ~ LoopSnoc.sample: ={n} ==> ={res}.
@@ -240,19 +240,20 @@ abstract theory Program.
     proc*. transitivity{1} { r <@ Sample.sample(n);
                              r <- rev r;            }
                            (={n} ==> ={r})
-                           (={n} ==> ={r})=> //=; 1:smt.
+                           (={n} ==> ={r})=> //=; 1:smt().
       inline *; wp; rnd rev; auto.
-      move=> &1 &2 ->>; split=> /= [|t {t}]; 1:smt.
+      move=> &1 &2 ->>; split=> /= [|t {t}]; 1:smt(revK).
       split.
-        move=> r; rewrite -/(support _ _); case (0 <= n{2})=> sign_n; 2:smt.
-          rewrite !dlist1E // (size_rev r)=> ?;congr;apply eq_big_perm.
-          by apply perm_eqP=> ?;rewrite count_rev.
-      smt.
+        move=> r; rewrite -/(support _ _); case (0 <= n{2})=> sign_n; 2:smt(dlist0E).
+        rewrite !dlist1E // (size_rev r)=> ?;congr;apply eq_big_perm.
+        by apply perm_eqP=> ?;rewrite count_rev.
+      smt(revK).
     transitivity{1} { r <@ Loop.sample(n);
                       r <- rev r;          }
                     (={n} ==> ={r})
-                    (={n} ==> ={r})=> //=; 1:smt.
+                    (={n} ==> ={r})=> //=; 1:smt().
       by wp; call Sample_Loop_eq.
-    by inline *; wp; while (={i, n0} /\ rev l{1} = l{2}); auto; smt.
+    inline*; wp; while (={i, n0} /\ rev l{1} = l{2}); auto=> /> &1 &2 _ r _.
+    by rewrite rev_cons cats1.
   qed.
 end Program.
